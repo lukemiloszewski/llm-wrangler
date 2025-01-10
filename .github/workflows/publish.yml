@@ -28,7 +28,7 @@ jobs:
 
     - name: Cache Environment
       id: cache-poetry
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: .venv
         key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
