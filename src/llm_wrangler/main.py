@@ -8,7 +8,7 @@ app = typer.Typer()
 
 
 @app.command()
-def extract(
+def scaffold_output(
     input_file: Path = typer.Argument(..., help="Path to the input file containing code snippets"),
     output_dir: Path = typer.Argument(..., help="Directory where the files should be extracted"),
 ) -> None:
@@ -21,8 +21,8 @@ def extract(
 
 
 @app.command()
-def show_prompt() -> None:
-    """Display the prompt template for code snippet formatting."""
+def get_output_prompt() -> None:
+    """Display the prompt template for for LLM prompts."""
     typer.echo(CodeSnippetOrganizer.prompt())
 
 

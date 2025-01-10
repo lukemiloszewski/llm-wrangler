@@ -12,10 +12,10 @@ pip install llm-wrangler
 
 ```shell
 # show prompt needed for correct format
-llm-wrangler show-prompt
+llm-wrangler get-output-prompt
 
 # 
-llm-wrangler extract input.txt output
+llm-wrangler scaffold-output examples/input.txt output
 ```
 
 ## Development
