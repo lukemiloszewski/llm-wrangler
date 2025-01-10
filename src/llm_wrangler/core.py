@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 class CodeSnippetOrganizer:
@@ -19,34 +19,31 @@ class CodeSnippetOrganizer:
     def process_file(self, input_file: Path, output_dir: Path) -> Dict[str, Dict[str, Any]]:
         """
         Process the input file containing code snippets and create corresponding files.
-        
+
         Args:
             input_file: Path to the input file containing code snippets
             output_dir: Directory where the files should be created
-            
+
         Returns:
             Dict containing information about processed files
         """
         input_file = Path(input_file)
         output_dir = Path(output_dir)
-        
-        content = input_file.read_text(encoding='utf-8')
+
+        content = input_file.read_text(encoding="utf-8")
         matches = re.finditer(self.pattern, content)
         processed_files = {}
 
         for match in matches:
-            filename = match.group('filename').strip()
-            file_content = match.group('content').strip()
-            
+            filename = match.group("filename").strip()
+            file_content = match.group("content").strip()
+
             full_path = output_dir / filename
             full_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            full_path.write_text(file_content, encoding='utf-8')
-            
-            processed_files[filename] = {
-                'path': str(full_path),
-                'size': len(file_content)
-            }
+
+            full_path.write_text(file_content, encoding="utf-8")
+
+            processed_files[filename] = {"path": str(full_path), "size": len(file_content)}
 
         return processed_files
 

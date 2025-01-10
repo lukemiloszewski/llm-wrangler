@@ -15,7 +15,7 @@ def scaffold_output(
     """Extract code snippets from a file into separate files."""
     organizer = CodeSnippetOrganizer()
     result = organizer.process_file(input_file, output_dir)
-    
+
     for filename, info in result.items():
         typer.echo(f"Created {filename} at {info['path']} ({info['size']} bytes)")
 
