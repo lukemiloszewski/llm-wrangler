@@ -1,6 +1,6 @@
 # README
 
-`llm-wrangler` is a CLI utility to develop with the inputs and outputs of llm-generated content.
+`llm-wrangler` is a CLI utility to generate the code structure from the output of llm-generated content.
 
 ## Installation
 
