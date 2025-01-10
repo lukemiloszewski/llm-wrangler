@@ -11,8 +11,8 @@ pip install llm-wrangler
 ## Usage
 
 ```shell
-# show prompt needed for correct llm output
-llm-wrangler get-output-prompt
+# get prompt needed for correct llm output
+llm-wrangler prompt
 
 # scaffold code structure form llm output
 llm-wrangler scaffold-output examples/input.txt output
@@ -21,6 +21,7 @@ llm-wrangler scaffold-output examples/input.txt output
 - run with `uv`:
 
 ```shell
+uv tool run llm-wrangler prompt
 uv tool run llm-wrangler scaffold-output input.txt output_folder
 ```
 

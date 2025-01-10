@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llm-wrangler"
-version = "0.2.0"
+version = "0.3.0"
 description = "LLM utilities for handling inputs and outputs."
 authors = ["Luke Miloszewski <lukemiloszewski@gmail.com>"]
 license = "MIT"

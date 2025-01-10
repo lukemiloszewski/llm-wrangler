@@ -21,7 +21,7 @@ def scaffold_output(
 
 
 @app.command()
-def get_output_prompt() -> None:
+def prompt() -> None:
     """Display the prompt template for for LLM prompts."""
     typer.echo(CodeSnippetOrganizer.prompt())
 
