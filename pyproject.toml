@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llm-wrangler"
-version = "0.1.0"
+version = "0.2.0"
 description = "LLM utilities for handling inputs and outputs."
 authors = ["Luke Miloszewski <lukemiloszewski@gmail.com>"]
 license = "MIT"
@@ -27,7 +27,7 @@ rich = "^12.5.1"
 ruff = "^0.1.8"
 
 [tool.poetry.scripts]
-llm-wrangler = "llm_io.main:app"
+llm-wrangler = "llm_wrangler.main:app"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -45,8 +45,6 @@ lint.select = [
     "W",   # pycodestyle warnings
     "F",   # pyflakes
     "I",   # isort
-#    "C",   # flake8-comprehensions
-#    "B",   # flake8-bugbear
     "UP",  # pyupgrade
 ]
 
@@ -63,7 +61,7 @@ tests = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["llm_io"]
+source = ["llm_wrangler"]
 
 [tool.coverage.report]
 show_missing = true

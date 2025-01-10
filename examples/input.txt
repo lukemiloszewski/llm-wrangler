@@ -1,0 +1,285 @@
+<<FILE:requirements.txt>>
+fastapi==0.104.1
+uvicorn==0.24.0
+aiohttp==3.9.1
+sentence-transformers==2.2.2
+qdrant-client==1.7.0
+numpy==1.26.2
+pydantic==2.5.2
+python-dotenv==1.0.0
+<<END>>
+
+<<FILE:config.py>>
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "github_stars")
+
+if not GITHUB_TOKEN:
+    raise ValueError("GITHUB_TOKEN environment variable must be set")
+<<END>>
+
+<<FILE:app/github_client.py>>
+from typing import List, Dict, Optional
+import aiohttp
+import asyncio
+from datetime import datetime
+import base64
+from config import GITHUB_TOKEN
+
+class GitHubClient:
+    def __init__(self, token: str = GITHUB_TOKEN):
+        self.token = token
+        self.headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+    async def get_user_stars(self, username: str) -> List[Dict]:
+        """Fetch all starred repositories for a given username."""
+        stars = []
+        page = 1
+        async with aiohttp.ClientSession() as session:
+            while True:
+                url = f"https://api.github.com/users/{username}/starred?page={page}&per_page=100"
+                async with session.get(url, headers=self.headers) as response:
+                    if response.status != 200:
+                        break
+                    data = await response.json()
+                    if not data:
+                        break
+                    stars.extend(data)
+                    page += 1
+        return stars
+
+    async def get_repo_metadata(self, repo_full_name: str) -> Dict:
+        """Get detailed metadata for a repository."""
+        async with aiohttp.ClientSession() as session:
+            # Get repo info
+            repo_url = f"https://api.github.com/repos/{repo_full_name}"
+            async with session.get(repo_url, headers=self.headers) as response:
+                if response.status != 200:
+                    raise ValueError(f"Failed to fetch repo data: {response.status}")
+                repo_data = await response.json()
+
+            # Get commit statistics
+            commits_url = f"{repo_url}/commits"
+            async with session.get(commits_url, headers=self.headers) as response:
+                if response.status == 200:
+                    commits = await response.json()
+                    first_commit = commits[-1] if commits else None
+                    last_commit = commits[0] if commits else None
+                else:
+                    first_commit = last_commit = None
+
+            # Get README content
+            readme_url = f"{repo_url}/readme"
+            async with session.get(readme_url, headers=self.headers) as response:
+                if response.status == 200:
+                    readme_data = await response.json()
+                    readme_content = base64.b64decode(readme_data["content"]).decode("utf-8")
+                else:
+                    readme_content = None
+
+        return {
+            "name": repo_data["name"],
+            "full_name": repo_data["full_name"],
+            "description": repo_data["description"] or "",
+            "language": repo_data["language"],
+            "topics": repo_data["topics"],
+            "stars_count": repo_data["stargazers_count"],
+            "forks_count": repo_data["forks_count"],
+            "first_commit_date": first_commit["commit"]["author"]["date"] if first_commit else None,
+            "last_commit_date": last_commit["commit"]["author"]["date"] if last_commit else None,
+            "readme_content": readme_content,
+            "created_at": repo_data["created_at"],
+            "updated_at": repo_data["updated_at"]
+        }
+<<END>>
+
+<<FILE:app/embeddings.py>>
+from typing import Dict, List
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams, PointStruct
+from config import QDRANT_URL, COLLECTION_NAME
+
+class EmbeddingEngine:
+    def __init__(self, qdrant_url: str = QDRANT_URL, collection_name: str = COLLECTION_NAME):
+        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.client = QdrantClient(url=qdrant_url)
+        self.collection_name = collection_name
+        
+        # Initialize collection if it doesn't exist
+        self.client.recreate_collection(
+            collection_name=self.collection_name,
+            vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+        )
+
+    def generate_repo_embedding(self, repo_data: Dict) -> np.ndarray:
+        """Generate embedding for repository data."""
+        # Combine relevant text fields
+        text_components = [
+            repo_data['name'],
+            repo_data['description'],
+            ' '.join(repo_data['topics']),
+        ]
+        
+        if repo_data['readme_content']:
+            text_components.append(repo_data['readme_content'])
+            
+        text_to_embed = ' '.join(filter(None, text_components))
+        return self.model.encode(text_to_embed)
+
+    def store_repo_data(self, repo_data: Dict, embedding: np.ndarray):
+        """Store repository data and its embedding."""
+        # Create a unique hash for the repo
+        repo_id = hash(repo_data['full_name'])
+        
+        # Create point with metadata and embedding
+        point = PointStruct(
+            id=repo_id,
+            vector=embedding.tolist(),
+            payload=repo_data
+        )
+        
+        # Store in Qdrant
+        self.client.upsert(
+            collection_name=self.collection_name,
+            points=[point]
+        )
+<<END>>
+
+<<FILE:app/search_engine.py>>
+from typing import List, Dict
+from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+from app.embeddings import EmbeddingEngine
+from config import QDRANT_URL, COLLECTION_NAME
+
+class SearchEngine:
+    def __init__(self, qdrant_url: str = QDRANT_URL, collection_name: str = COLLECTION_NAME):
+        self.client = QdrantClient(url=qdrant_url)
+        self.collection_name = collection_name
+        self.embedding_engine = EmbeddingEngine(qdrant_url, collection_name)
+
+    async def similarity_search(self, query: str, limit: int = 10) -> List[Dict]:
+        """Perform similarity search based on query text."""
+        query_vector = self.embedding_engine.model.encode(query)
+        results = self.client.search(
+            collection_name=self.collection_name,
+            query_vector=query_vector,
+            limit=limit
+        )
+        return [hit.payload for hit in results]
+
+    async def keyword_search(self, keyword: str, limit: int = 10) -> List[Dict]:
+        """Perform keyword-based search."""
+        filter = Filter(
+            should=[
+                FieldCondition(key="name", match=MatchValue(value=keyword)),
+                FieldCondition(key="description", match=MatchValue(value=keyword)),
+                FieldCondition(key="topics", match=MatchValue(value=keyword)),
+            ]
+        )
+        results = self.client.scroll(
+            collection_name=self.collection_name,
+            filter=filter,
+            limit=limit
+        )
+        return [point.payload for point in results[0]]
+
+    async def filter_by_language(self, language: str, limit: int = 10) -> List[Dict]:
+        """Filter repositories by programming language."""
+        filter = Filter(
+            must=[
+                FieldCondition(key="language", match=MatchValue(value=language))
+            ]
+        )
+        results = self.client.scroll(
+            collection_name=self.collection_name,
+            filter=filter,
+            limit=limit
+        )
+        return [point.payload for point in results[0]]
+<<END>>
+
+<<FILE:app/api.py>>
+from fastapi import FastAPI, HTTPException
+from typing import List, Optional, Dict
+from pydantic import BaseModel
+from app.github_client import GitHubClient
+from app.embeddings import EmbeddingEngine
+from app.search_engine import SearchEngine
+
+app = FastAPI(title="GitHub Stars Search")
+
+# Initialize components
+github_client = GitHubClient()
+embedding_engine = EmbeddingEngine()
+search_engine = SearchEngine()
+
+class SearchResponse(BaseModel):
+    results: List[Dict]
+    total: int
+
+@app.post("/index/{username}")
+async def index_user_stars(username: str):
+    """Index all starred repositories for a given user."""
+    try:
+        # Get all starred repos
+        stars = await github_client.get_user_stars(username)
+        
+        # Process each repo
+        for star in stars:
+            # Get detailed metadata
+            repo_data = await github_client.get_repo_metadata(star["full_name"])
+            
+            # Generate and store embedding
+            embedding = embedding_engine.generate_repo_embedding(repo_data)
+            embedding_engine.store_repo_data(repo_data, embedding)
+            
+        return {"message": f"Successfully indexed {len(stars)} repositories"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/search/similarity", response_model=SearchResponse)
+async def search_similar(query: str, limit: Optional[int] = 10):
+    """Search repositories by similarity to query text."""
+    try:
+        results = await search_engine.similarity_search(query, limit)
+        return SearchResponse(results=results, total=len(results))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/search/keyword", response_model=SearchResponse)
+async def search_keyword(keyword: str, limit: Optional[int] = 10):
+    """Search repositories by keyword."""
+    try:
+        results = await search_engine.keyword_search(keyword, limit)
+        return SearchResponse(results=results, total=len(results))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/search/language", response_model=SearchResponse)
+async def search_by_language(language: str, limit: Optional[int] = 10):
+    """Filter repositories by programming language."""
+    try:
+        results = await search_engine.filter_by_language(language, limit)
+        return SearchResponse(results=results, total=len(results))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+<<END>>
+
+<<FILE:main.py>>
+import uvicorn
+from app.api import app
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+<<END>>
