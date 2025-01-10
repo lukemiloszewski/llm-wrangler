@@ -2,12 +2,6 @@
 
 `llm-wrangler` is a CLI utility to generate the code structure from the output of llm-generated content.
 
-## Installation
-
-```shell
-pip install llm-wrangler
-```
-
 ## Usage
 
 - use an LLM to generate code snippets (which may be scoped across multiple modules)
