@@ -1,0 +1,36 @@
+version-template: "v$MAJOR.$MINOR.$PATCH"
+version-resolver:
+  major:
+    labels:
+      - 'breaking'
+  minor:
+    labels:
+      - 'feature'
+  patch:
+    labels:
+      - 'fix'
+      - 'chore'
+      - 'dependency'
+      - 'removal'
+  default: patch
+name-template: '$RESOLVED_VERSION'
+tag-template: '$RESOLVED_VERSION'
+change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
+template: |
+  # What's Changed
+  $CHANGES
+categories:
+  - title: ":bang: Breaking Changes"
+    label: "breaking"
+  - title: ":rocket: Features"
+    label: "feature"
+  - title: ":bug: Bug Fixes"
+    label: "fix"
+  - title: ":fire: Removals"
+    label: "removal"
+  - title: ":wrench: Chores"
+    label: "chore"
+  - title: ":package: Dependencies"
+    label: "dependency"
+exclude-labels:
+  - skip

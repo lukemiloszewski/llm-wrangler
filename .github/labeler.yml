@@ -1,0 +1,27 @@
+- name: breaking
+  description: Introduces a breaking change
+  color: 7c3ea5
+- name: feature
+  description: Introduces a feature
+  color: a2eeef
+- name: fix
+  description: Patches a bug
+  color: 3c7ffb
+- name: bug
+  description: Identifies a bug
+  color: d73a4a
+- name: removal
+  description: Removes code
+  color: f00000
+- name: chore
+  description: Maintains code
+  color: fc964e
+- name: dependency
+  description: Updates a dependency
+  color: 00ce44
+- name: question
+  description: Requests more information
+  color: d876e3
+- name: skip
+  description: Skips changelog
+  color: ededed

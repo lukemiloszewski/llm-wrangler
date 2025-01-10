@@ -1,0 +1,31 @@
+name: Release Drafter
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+jobs:
+  release_drafter:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR Has One Label
+        if: github.event_name == 'pull_request'
+        uses: mheap/github-action-required-labels@v2
+        with:
+          mode: exactly
+          count: 1
+          labels: "breaking, feature, fix, bug, removal, chore, dependency, question, skip"
+
+      - name: Add PR to Draft Release Changelog
+        if: github.event_name == 'push'
+        uses: release-drafter/release-drafter@v5.20.1
+        with:
+          config-name: release-drafter.yml
+          commitish: main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
