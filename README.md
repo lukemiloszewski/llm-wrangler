@@ -18,6 +18,12 @@ llm-wrangler get-output-prompt
 llm-wrangler scaffold-output examples/input.txt output
 ```
 
+- with `uv`:
+
+```shell
+uv tool run llm-wrangler scaffold-output input.txt output_folder
+```
+
 ## Development
 
 - to publish to `pypi`, configure token:
