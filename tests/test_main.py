@@ -1,6 +1,5 @@
+from llm_wrangler import main
 from typer.testing import CliRunner
-
-from llm_io import main
 
 
 def test_main_runs(runner: CliRunner) -> None:
