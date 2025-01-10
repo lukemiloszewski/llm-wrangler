@@ -1,6 +1,6 @@
-# Welcome to llm-io
+# Welcome to llm-wrangler
 
-For full documentation visit [GitHub](https://github.com/lukemiloszewski/llm-io).
+For full documentation visit [GitHub](https://github.com/lukemiloszewski/llm-wrangler).
 
 ## Overview
 
